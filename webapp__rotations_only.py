@@ -185,8 +185,8 @@ It would be wrong to conclude that there are some rotations that are not possibl
 or the Rodrigues generalized rotation function. The fixed calculation is a fixed value for _q_ and a fixed value for 
 _h_. It can be shown analytically that for any rotation _q_ to _q'_, there is a _h_ that can be chosen to do the task.
 
-The code used to generate the webapp and the math behind the functions can be inspected by clicking the 'show code'
-button. The site can be cloned from """
+The code used to generate the webapp and the math behind the functions can be inspected here by clicking the 'show code'
+button. The site can be cloned from https://github.com/dougsweetser/rotations_only.git."""
 )
 
 
