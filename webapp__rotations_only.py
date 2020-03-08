@@ -5,7 +5,6 @@ from PIL import Image
 
 from Qs import (
     Q,
-    Qs,
     qrandom,
     rotation,
     squares,
@@ -77,8 +76,6 @@ Rodrigues_generalized_data_squares = squares(Rodrigues_generalized_data)
 Rodrigues_generalized_data_norm_squares = norm_squareds(Rodrigues_generalized_data)
 
 # Main page.
-
-# st.markdown("<style='background-color:powderblue;'></style>", unsafe_allow_html=True),
 
 st.title("Rotations Only")
 
@@ -157,9 +154,9 @@ value is (-13, 2, 4, 6). Two rotation functions can be used. The first is the ro
 in 1843. This is applied over and over again, the number of times determined by the dimension value. There is also
 a choice for the quaternion _h_. It is either chosen randomly or can be fixed at a value of h=(2, 3, 2, 1).
 
-The second function was proposed to do Lorentz boosts by D. Sweetser in 2010 and independently by Dr. M. Kharinov (year not 
-known). When initially found, it was not realized that rotations were possible! A mere 3 years later, it was noticed that 
-if the first term of the parameter _h_ was zero and its norm was unity, a 3D rotation would result.
+The second function was proposed to do Lorentz boosts by D. Sweetser in 2010 and independently by Dr. M. Kharinov (year 
+not known). When initially found, it was not realized that rotations were possible! A mere 3 years later, it was noticed 
+that if the first term of the parameter _h_ was zero and its norm was unity, a 3D rotation would result.
 
 The function written on one line is incorrect. Only in the Spring of 2020 have I begun to write the Rodrigues 
 generalization as a two part function like so:
