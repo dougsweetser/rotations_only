@@ -39,9 +39,9 @@ class Q(object):
     ):
 
         if values is None:
-            self.df = pd.DataFrame(data=[0, 0, 0, 0])
+            self.df = pd.DataFrame(data=[0, 0, 0, 0], index=["t", "x", "y", "z"])
         elif len(values) == 4:
-            self.df = pd.DataFrame(data=values)
+            self.df = pd.DataFrame(data=values, index=["t", "x", "y", "z"])
 
         elif len(values) == 8:
             self.df = pd.DataFrame(
@@ -50,7 +50,8 @@ class Q(object):
                     values[2] - values[3],
                     values[4] - values[5],
                     values[6] - values[7],
-                ]
+                ],
+                index=["t", "x", "y", "z"],
             )
 
         else:
@@ -59,10 +60,10 @@ class Q(object):
             )
 
         self.t, self.x, self.y, self.z = (
-            self.df.iloc(0)[0][0],
-            self.df.iloc(0)[1][0],
-            self.df.iloc(0)[2][0],
-            self.df.iloc(0)[3][0],
+            self.df.at["t", 0],
+            self.df.at["x", 0],
+            self.df.at["y", 0],
+            self.df.at["z", 0],
         )
 
         self.representation = representation
@@ -2298,14 +2299,29 @@ def rotation_and_or_boost(q_1: Q, h: Q) -> Q:
             if not math.isclose(norm_squared(h).t, 1):
                 h = normalize(h)
                 h.print_state(
-                    "To do a 3D rotation, h adjusted value so scalar_q(h h^*) = 1"
+                    "To do a 3D rotation, adjusted value of h so scalar_q(h h^*) = 1"
                 )
 
         else:
             if not math.isclose(square(h).t, 1):
-                h = Lorentz_next_boost(h, q1())
+                # The scalar part of h will be used to calculate cosh(h.t) and sinh(h.t)
+                # The normalized vector part will point sinh(t) in the direction of vector_q(h)
+                h_scalar = scalar_q(h)
+                h_nomralized_vector = normalize(vector_q(h))
+
+                if np.abs(h_scalar.t) > 1:
+                    h_scalar = inverse(h_scalar)
+
+                h_cosh = product(
+                    add(exp(h_scalar), exp(flip_sign(h_scalar))), q1(1.0 / 2.0)
+                )
+                h_sinh = product(
+                    dif(exp(h_scalar), exp(flip_sign(h_scalar))), q1(1.0 / 2.0)
+                )
+
+                h = add(h_cosh, product(h_nomralized_vector, h_sinh))
                 h.print_state(
-                    "To do a Lorentz boost, h adjusted value so scalar_q(h²) = 1"
+                    "To do a Lorentz boost, adjusted value of h so scalar_q(h²) = 1"
                 )
 
     triple_1 = triple_product(h, q_1, conj(h))
@@ -2419,7 +2435,9 @@ def Lorentz_next_boost(q_1: Q, q_2: Q) -> Q:
             f"Oops, to be a boost, the first values must both be greater than one: {q_1.t},  {q_2.t}"
         )
 
-    if not math.isclose(square(q_1).t, square(q_2).t):
+    if not math.isclose(square(q_1).t, square(q_2).t) or math.isclose(
+        square(q_1).t, -square(q_2).t
+    ):
         raise ValueError(
             f"Oops, the squares of these two are not equal: {square(q_1).t} != {square(q_2).t}"
         )
@@ -2431,8 +2449,8 @@ def Lorentz_next_boost(q_1: Q, q_2: Q) -> Q:
     if np.abs(q_s.t) > 1:
         q_s = inverse(q_s)
 
-    exp_sum = product(add(exp(q_s), exp(flip_sign(q_s))), q1(1.0 / 2.0))
-    exp_dif = product(dif(exp(q_s), exp(flip_sign(q_s))), q1(1.0 / 2.0))
+    exp_sum = product(add(exp(q_s), exp(flip_sign(q_s))), q1(-1.0 / 2.0))
+    exp_dif = product(dif(exp(q_s), exp(flip_sign(q_s))), q1(-1.0 / 2.0))
 
     boost = add(exp_sum, product(q_v, exp_dif))
 
@@ -3112,6 +3130,52 @@ def sigma(kind: str = "x", theta: float = None, phi: float = None) -> Qs:
         raise ValueError("Oops, I only know about x, y, z, and their combinations.")
 
     return normalizes(sigma_bunch[kind])
+
+
+def zero_out(
+    q_1: Q, t: bool = False, x: bool = False, y: bool = False, z: bool = False
+) -> Q:
+    """
+    Puts a zero in one or more of the four places.
+
+    Args:
+        q_1 Q
+        t: bool    zero out t
+        x: bool    zero out x
+        y: bool    zero out y
+        z: bool    zero out z
+
+    Returns: Qs
+    """
+
+    new_q = deepcopy(q_1)
+
+    if t:
+        new_q.t = 0
+
+    if x:
+        new_q.x = 0
+
+    if y:
+        new_q.y = 0
+
+    if z:
+        new_q.z = 0
+
+    return new_q
+
+
+def zero_outs(
+    q_1: Qs, t: bool = False, x: bool = False, y: bool = False, z: bool = False
+):
+    f"""{zero_out.__doc__}""".replace("Q", "Qs")
+
+    return Qs(
+        [zero_out(q, t, x, y, z) for q in q_1.qs],
+        qs_type=q_1.qs_type,
+        rows=q_1.rows,
+        columns=q_1.columns,
+    )
 
 
 # Generators of quaternion series.

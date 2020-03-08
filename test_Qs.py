@@ -1431,6 +1431,20 @@ def test__1350_is_square():
     assert is_square(Op_scalar)
 
 
+def test__1360_zero_out():
+    qz = zero_out(q1234, x=True)
+    q1234.print_state("qz, x=0: ", qz)
+    assert q1234.x == 2
+    assert qz.x == 0
+
+
+def test__1360_zero_outs():
+    qz = zero_outs(qs_1234, x=True)
+    qz.print_state("qz, x=0: ", qz)
+    assert qs_1234.qs[1].x == 2
+    assert qz.qs[0].x == 0
+
+
 def test__1600_generate_Qs():
     q_10 = generate_Qs(scalar_q, Q1123)
     assert q_10.dim == 10
