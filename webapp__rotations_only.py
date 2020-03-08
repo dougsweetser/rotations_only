@@ -18,9 +18,9 @@ from Qs import (
 
 
 # Sidebar setup.
-Rodrigues_func = st.sidebar.checkbox(label="UqU^-1", value=True)
+Rodrigues_func = st.sidebar.checkbox(label="h q h^-1", value=True)
 Rodrigues_generalized_func = st.sidebar.checkbox(
-    label="UqU* + 1/2((U U q)* - (U* U* q)*), U.t = 0", value=True
+    label="h'=vec(h)/|vec(h)|; h' q h'* + 1/2((h' h' q)* - (h'* h'* q)*)", value=True
 )
 
 # U_zero = st.sidebar.radio(label="Make one zero", options=("U.t", "U.x", "U.y", "U.z"))
@@ -157,17 +157,15 @@ value is (-13, 2, 4, 6). Two rotation functions can be used. The first is the ro
 in 1843. This is applied over and over again, the number of times determined by the dimension value. There is also
 a choice for the quaternion _h_. It is either chosen randomly or can be fixed at a value of h=(2, 3, 2, 1).
 
-The second function was proposed to do Lorentz boosts by D. Sweetser in 2010 and independently by Dr. Kharinov (year not 
-known). WHen initially used, it was not realized that rotations were possible! A mere 3 years later, it was noticed that 
-if the first term of the parameter _U_ was zero and the norm of _h_ was 
-unity, a normal 3D rotation would result.
+The second function was proposed to do Lorentz boosts by D. Sweetser in 2010 and independently by Dr. M. Kharinov (year not 
+known). When initially found, it was not realized that rotations were possible! A mere 3 years later, it was noticed that 
+if the first term of the parameter _h_ was zero and its norm was unity, a 3D rotation would result.
 
-The function written as I had on one line never passed a sniff test - it looks like it can only have at most three
-degrees of freedom yet the Lorentz group requires six, three for rotations, three for boosts. Only in the Spring of
-2020 have I begun to write the Rodrigues generalation as a two part function like so:
+The function written on one line is incorrect. Only in the Spring of 2020 have I begun to write the Rodrigues 
+generalization as a two part function like so:
 """
 )
-image = Image.open("Rodrigues_generalization_multi-part.gif")
+image = Image.open("images/Rodrigues_generalization_multi-part.gif")
 st.image(image)
 st.markdown(
     """The first part does rotations. The second part does boosts. The two parts divide the full set of
