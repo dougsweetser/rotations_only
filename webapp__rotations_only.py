@@ -23,7 +23,7 @@ st.sidebar.markdown("Rotation only function:")
 image = Image.open("images/Rodrigues_generalization.only_rotation.2_lines.png")
 st.sidebar.image(image)
 # U_zero = st.sidebar.radio(label="Make one zero", options=("U.t", "U.x", "U.y", "U.z"))
-the_fix = st.sidebar.radio(label="U is", options=("fixed", "random"), index=1)
+the_fix = st.sidebar.radio(label="h is", options=("fixed", "random"), index=1)
 zero_t = st.sidebar.checkbox(label="Zero t", value=False)
 zero_x = st.sidebar.checkbox(label="Zero x", value=False)
 zero_y = st.sidebar.checkbox(label="Zero y", value=False)
@@ -92,7 +92,7 @@ if Rodrigues_func:
                 "y": Rodrigues_data.df[2],
                 "z": Rodrigues_data.df[3],
             },
-            name="h U h⁻¹",
+            name="h q h⁻¹",
             mode="markers",
             marker=dict(size=POINT_SIZE, opacity=OPACITY, color="violet"),
         )
