@@ -5,7 +5,9 @@ from PIL import Image
 
 from Qs import (
     Q,
+    Qs,
     qrandom,
+    qrandoms,
     rotation,
     squares,
     norm_squareds,
@@ -53,20 +55,17 @@ if the_fix == "fixed":
     )
 
 elif the_fix == "random":
-    Rodrigues_data = zero_outs(
-        generate_QQs(rotation, initial_point, qrandom, dim=dim),
-        zero_t,
-        zero_x,
-        zero_y,
-        zero_z,
-    )
-    Rodrigues_generalized_data = zero_outs(
-        generate_QQs(rotation_only, initial_point, qrandom, dim=dim),
-        zero_t,
-        zero_x,
-        zero_y,
-        zero_z,
-    )
+
+    Rodrigues_points = [initial_point]
+    Rodrigues_generalized_points = [initial_point]
+
+    for _ in range(dim - 1):
+        new_h = zero_out(qrandom(), zero_t, zero_x, zero_y, zero_z)
+        Rodrigues_points.append(rotation(Rodrigues_points[-1], new_h))
+        Rodrigues_generalized_points.append(rotation_only(Rodrigues_generalized_points[-1], new_h))
+
+    Rodrigues_data = Qs(Rodrigues_points)
+    Rodrigues_generalized_data = Qs(Rodrigues_generalized_points)
 
 # collect stats
 Rodrigues_data_squares = squares(Rodrigues_data)
@@ -82,7 +81,7 @@ st.title("Rotations Only")
 fig = go.Figure()
 go.Layout()
 POINT_SIZE = 6
-OPACITY = 0.5
+OPACITY = 0.4
 
 if Rodrigues_func:
     fig.add_trace(
@@ -94,7 +93,7 @@ if Rodrigues_func:
             },
             name="h q h⁻¹",
             mode="markers",
-            marker=dict(size=POINT_SIZE, opacity=OPACITY, color="violet"),
+            marker=dict(size=POINT_SIZE, opacity=OPACITY, color="blue"),
         )
     )
 
@@ -108,7 +107,7 @@ if Rodrigues_generalized_func:
             },
             name="Rotation only",
             mode="markers",
-            marker=dict(size=POINT_SIZE, opacity=OPACITY, color="springgreen"),
+            marker=dict(size=POINT_SIZE, opacity=OPACITY, color="yellow"),
         )
     )
 
