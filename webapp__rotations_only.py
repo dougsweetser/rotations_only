@@ -55,17 +55,25 @@ if the_fix == "fixed":
     )
 
 elif the_fix == "random":
+    q_rans = qrandoms(dim=dim - 1)
 
-    Rodrigues_points = [initial_point]
-    Rodrigues_generalized_points = [initial_point]
+    new_q = [initial_point]
 
-    for _ in range(dim - 1):
-        new_h = zero_out(qrandom(), zero_t, zero_x, zero_y, zero_z)
-        Rodrigues_points.append(rotation(Rodrigues_points[-1], new_h))
-        Rodrigues_generalized_points.append(rotation_only(Rodrigues_generalized_points[-1], new_h))
+    for q_ran in q_rans.qs:
+        new_q.append(rotation(new_q[-1], q_ran))
 
-    Rodrigues_data = Qs(Rodrigues_points)
-    Rodrigues_generalized_data = Qs(Rodrigues_generalized_points)
+    new_qs = Qs(new_q)
+
+    Rodrigues_data = zero_outs(new_qs, zero_t, zero_x, zero_y, zero_z)
+
+    new_q2 = [initial_point]
+
+    for q_ran in q_rans.qs:
+        new_q2.append(rotation_only(new_q2[-1], q_ran))
+
+    new_qs2 = Qs(new_q2)
+
+    Rodrigues_generalized_data = zero_outs(new_qs2, zero_t, zero_x, zero_y, zero_z)
 
 # collect stats
 Rodrigues_data_squares = squares(Rodrigues_data)
@@ -75,25 +83,24 @@ Rodrigues_generalized_data_squares = squares(Rodrigues_generalized_data)
 Rodrigues_generalized_data_norm_squares = norm_squareds(Rodrigues_generalized_data)
 
 # Main page.
-
 st.title("Rotations Only")
 
 fig = go.Figure()
 go.Layout()
 POINT_SIZE = 6
-OPACITY = 0.4
+OPACITY = 0.5
 
 if Rodrigues_func:
     fig.add_trace(
         go.Scatter3d(
             {
-                "x": Rodrigues_data.df[1],
-                "y": Rodrigues_data.df[2],
-                "z": Rodrigues_data.df[3],
+                "x": Rodrigues_data.df['x'],
+                "y": Rodrigues_data.df['y'],
+                "z": Rodrigues_data.df['z'],
             },
             name="h q h⁻¹",
             mode="markers",
-            marker=dict(size=POINT_SIZE, opacity=OPACITY, color="blue"),
+            marker=dict(size=POINT_SIZE, opacity=OPACITY, color="violet"),
         )
     )
 
@@ -101,13 +108,13 @@ if Rodrigues_generalized_func:
     fig.add_trace(
         go.Scatter3d(
             {
-                "x": Rodrigues_generalized_data.df[1],
-                "y": Rodrigues_generalized_data.df[2],
-                "z": Rodrigues_generalized_data.df[3],
+                "x": Rodrigues_generalized_data.df['x'],
+                "y": Rodrigues_generalized_data.df['y'],
+                "z": Rodrigues_generalized_data.df['z'],
             },
             name="Rotation only",
             mode="markers",
-            marker=dict(size=POINT_SIZE, opacity=OPACITY, color="yellow"),
+            marker=dict(size=POINT_SIZE, opacity=OPACITY, color="springgreen"),
         )
     )
 
@@ -136,13 +143,13 @@ table = f"""t² + R² | t²-R² | 2 t x | 2 t y | 2 t z
 
 if Rodrigues_func:
     means = Rodrigues_data_squares.df.mean()
-    square = Rodrigues_data_norm_squares.df[0] / dim
-    table += f"{square[0]:.2f} | {means[0]:.2f} | {means[1]:.2f} | {means[2]:.2f} | {means[3]:.2f}\n"
+    square_df = Rodrigues_data_norm_squares.df
+    table += f"{square_df['t'][0] / dim:.2f} | {means[0]:.2f} | {means[1]:.2f} | {means[2]:.2f} | {means[3]:.2f}\n"
 
 if Rodrigues_generalized_func:
     means = Rodrigues_generalized_data_squares.df.mean()
-    square = Rodrigues_generalized_data_norm_squares.df[0] / dim
-    table += f"{square[0]:.2f} | {means[0]:.2f} | {means[1]:.2f} | {means[2]:.2f} | {means[3]:.2f}"
+    square_df = Rodrigues_generalized_data_norm_squares.df
+    table += f"{square_df['t'][0] / dim:.2f} | {means[0]:.2f} | {means[1]:.2f} | {means[2]:.2f} | {means[3]:.2f}"
 
 st.markdown(f"{table}")
 
