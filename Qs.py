@@ -433,10 +433,29 @@ class Qs(object):
             )
 
         if qs is None:
+            self.qs = [q0()]
             self.d, self.dim, self.dimensions = 0, 0, 0
+            self.df = pd.DataFrame([[0, 0, 0, 0]], columns=("t", "x", "y", "z"))
         else:
             self.d, self.dim, self.dimensions = int(len(qs)), int(len(qs)), int(len(qs))
-            self.df = pd.DataFrame([[q.t, q.x, q.y, q.z] for q in qs])
+            self.df = pd.DataFrame(
+                [[q.t, q.x, q.y, q.z] for q in qs], columns=("t", "x", "y", "z")
+            )
+
+        if not self.qs[0].is_symbolic():
+            mins = self.df.min()
+            self.min = Bunch()
+            self.min.t = float(math.floor(mins.t))
+            self.min.x = float(math.floor(mins.x))
+            self.min.y = float(math.floor(mins.y))
+            self.min.z = float(math.floor(mins.z))
+
+            maxs = self.df.max()
+            self.max = Bunch()
+            self.max.t = float(math.ceil(maxs.t))
+            self.max.x = float(math.ceil(maxs.x))
+            self.max.y = float(math.ceil(maxs.y))
+            self.max.z = float(math.ceil(maxs.z))
 
         self.set_qs_type(qs_type, rows, columns, copy=False)
 
@@ -841,7 +860,7 @@ def qq_to_qs_function(func, q_1, q_2):
 
 def qqq_to_qs_function(func, q_1, q_2, q_3):
     """
-    Utility to transform quaternion functions to quaternion state function
+    Utility to transform quaternion functions to quaternion series function
     that operate separately on each qs state.
 
     Args:
@@ -860,6 +879,47 @@ def qqq_to_qs_function(func, q_1, q_2, q_3):
         rows=q_1.rows,
         columns=q_1.columns,
     )
+
+
+def qs_to_q_function(func: FunctionType, q_1: Qs) -> Q:
+    """
+    Utility to transform quaternion series functions to a quaternion function.
+
+    Args:
+        func:     Pointer to a function
+        q_1: Qs   A quaternion series
+
+    Returns: Q
+
+    """
+
+    scalar = func(q_1)
+
+    if scalar.qs_type != "scalar_q":
+        raise Exception(f"Oops, does not evaluate to a scalar: {scalar}")
+
+    return scalar.qs[0]
+
+
+def qs_qs_to_q_function(func: FunctionType, q_1: Qs, q_2: Qs) -> Q:
+    """
+    Utility to transform quaternion series functions to a quaternion function.
+
+    Args:
+        func:     Pointer to a function
+        q_1: Qs   A quaternion series
+        q_2: Qs   A quaternion series
+
+    Returns: Q
+
+    """
+
+    scalar = func(q_1, q_2)
+
+    if scalar.qs_type != "scalar_q":
+        raise Exception(f"Oops, does not evaluate to a scalar: {scalar}")
+
+    return scalar.qs[0]
 
 
 # # Parts of quaternions
@@ -1946,6 +2006,11 @@ def cross_qs(q_1: Qs, q_2: Qs) -> Qs:
     return qq_to_qs_function(cross_q, q_1, q_2)
 
 
+def dot_product(q_1: Qs, q_2: Qs) -> Q:
+    f"""{products.__doc__}"""
+    return qs_qs_to_q_function(products, q_1, q_2)
+
+
 def inverse(q_1: Q, additive: bool = False) -> Q:
     """
     The additive or multiplicative inverse of a quaternion. Defaults to 1/q, not -q.
@@ -2172,27 +2237,32 @@ def triple_products(q_1: Qs, q_2: Qs, q_3: Qs) -> Qs:
     return qqq_to_qs_function(triple_product, q_1, q_2, q_3)
 
 
-def rotation(q_1: Q, u: Q) -> Q:
+def rotation(q_1: Q, h: Q) -> Q:
     """
     Do a rotation using a triple product: u R 1/u.
+    SPECIAL NOTE: q_1 = 0 MUST WORK! Zero is just another number.
+    To make it work, view the rotation function as a 2-part function.
+    If h=0, then return q_1.
+    If h!=0, then form the Rodrigues triple product.
+    Also note one needs to use the inverse to not rescale the result.
 
-    $ q.rotation(u) = u q u^{-1} $
-
-    $ = (u^2 t - u V.R + u R.V + t V.V, $
-    $ ... - u t V + (V.R) V + u^2 R + V t u + VxR u - u RxV - VxRxV) $
+    $ rotation(q, h) = h q h^{-1} $
 
     Args:
         q_1: Q
-        u: Q    pre-multiply by u, post-multiply by $u^{-1}$.
+        h: Q    pre-multiply by u, post-multiply by $u^{-1}$.
 
     Returns: Q
 
     """
 
-    q_1.check_representations(u)
+    q_1.check_representations(h)
     end_q_type = f"{q_1.q_type}*rot"
 
-    q_rot = triple_product(u, q_1, inverse(u))
+    if equal(h, q0()):
+        return q_1
+
+    q_rot = triple_product(h, q_1, inverse(h))
     q_rot.q_type = end_q_type
     q_rot.representation = q_1.representation
 
@@ -2202,6 +2272,44 @@ def rotation(q_1: Q, u: Q) -> Q:
 def rotations(q_1: Qs, u: Qs) -> Qs:
     f"""{rotation.__doc__}""".replace("Q", "Qs")
     return qq_to_qs_function(rotation, q_1, u)
+
+
+def rotation_and_rescale(q_1: Q, h: Q) -> Q:
+    """
+    Do a rotation using a triple product: u R u^*.
+    The rescaling will be by a factor of ||u||^2
+
+    SPECIAL NOTE: q_1 = 0 MUST WORK! Zero is just another number.
+    To make it work, view the rotation function as a 2-part function.
+    If h=0, then return q_1.
+    If h!=0, then form the Rodrigues triple product.
+
+    $ rotation(q, h) = h q h^* $
+
+    Args:
+        q_1: Q
+        h: Q    pre-multiply by u, post-multiply by $u^{-1}$.
+
+    Returns: Q
+
+    """
+
+    q_1.check_representations(h)
+    end_q_type = f"{q_1.q_type}*rot"
+
+    if equal(h, q0()):
+        return q_1
+
+    q_rot = triple_product(u, q_1, inverse(h))
+    q_rot.q_type = end_q_type
+    q_rot.representation = q_1.representation
+
+    return q_rot
+
+
+def rotation_and_rescales(q_1: Qs, h: Qs) -> Qs:
+    f"""{rotation_and_rescale.__doc__}""".replace("Q", "Qs")
+    return qq_to_qs_function(rotation_and_rescale, q_1, h)
 
 
 def rotation_angle(
@@ -2255,7 +2363,7 @@ def rotation_angle(
     return Q([angle, 0, 0, 0])
 
 
-def rotation_and_or_boost(q_1: Q, h: Q) -> Q:
+def rotation_and_or_boost(q_1: Q, h: Q, verbose=False) -> Q:
     """
     The method for doing a rotation in 3D space discovered by Rodrigues in the 1840s used a quaternion triple
     product. After Minkowski characterized Einstein's work in special relativity as a 4D rotation, efforts were
@@ -2295,14 +2403,11 @@ def rotation_and_or_boost(q_1: Q, h: Q) -> Q:
     end_q_type = f"{q_1.q_type}rotation/boost"
 
     if not h.is_symbolic():
-        if math.isclose(h.t, 0):
-            if not math.isclose(norm_squared(h).t, 1):
-                h = normalize(h)
-                h.print_state(
-                    "To do a 3D rotation, adjusted value of h so scalar_q(h h^*) = 1"
-                )
 
-        else:
+        if (not math.isclose(h.t, 0) and not equal(q0(), vector_q(h))) or equal(
+            h, q0()
+        ):
+
             if not math.isclose(square(h).t, 1):
                 # The scalar part of h will be used to calculate cosh(h.t) and sinh(h.t)
                 # The normalized vector part will point sinh(t) in the direction of vector_q(h)
@@ -2320,9 +2425,19 @@ def rotation_and_or_boost(q_1: Q, h: Q) -> Q:
                 )
 
                 h = add(h_cosh, product(h_nomralized_vector, h_sinh))
-                h.print_state(
-                    "To do a Lorentz boost, adjusted value of h so scalar_q(h²) = 1"
-                )
+
+                if verbose:
+                    h.print_state(
+                        "To do a Lorentz boost, adjusted value of h so scalar_q(h²) = 1"
+                    )
+
+        else:
+            if not math.isclose(norm_squared(h).t, 1):
+                h = normalize(h)
+                if verbose:
+                    h.print_state(
+                        "To do a 3D rotation, adjusted value of h so scalar_q(h h^*) = 1"
+                    )
 
     triple_1 = triple_product(h, q_1, conj(h))
     triple_2 = conj(triple_product(h, h, q_1))
@@ -2389,28 +2504,62 @@ def Lorentz_next_rotation(q_1: Q, q_2: Q) -> Q:
             f"Oops, to be a rotation, the first values must be the same: {q_1.t} != {q_2.t}"
         )
 
-    if not math.isclose(square(q_1).t, square(q_2).t):
+    if not math.isclose(norm_squared(q_1).t, norm_squared(q_2).t):
         raise ValueError(
-            f"Oops, the squares of these two are not equal: {square(q_1).t} != {square(q_2).t}"
+            f"Oops, the norm squared of these two are not equal: {norm_squared(q_1).t} != {norm_squared(q_2).t}"
         )
 
-    next_rotation = normalize(product(q_1, q_2, kind="odd"))
+    next_rotation = product(q_1, q_2)
+    v_abs_q_1 = abs_of_vector(q_1).t
+    next_vector_normalized = normalize(vector_q(next_rotation), v_abs_q_1)
+    next_vector_normalized.t = q_1.t
 
-    # If the 2 quaternions point in exactly the same direction, the result is zero.
-    # That is unacceptable for closure, so return the normalized vector_q of one input.
-    # This does create some ambiguity since q and q_2 could point in exactly opposite
-    # directions. In that case, the first quaternion is always chosen.
-    v_norm = norm_squared_of_vector(next_rotation)
-
-    if v_norm.t == 0:
-        next_rotation = normalize(vector_q(q_1))
-
-    return next_rotation
+    return next_vector_normalized
 
 
 def Lorentz_next_rotations(q_1: Qs, q_2: Qs) -> Qs:
     f"""{Lorentz_next_rotation.__doc__}""".replace("Q", "Qs")
     return qq_to_qs_function(Lorentz_next_rotation, q_1, q_2)
+
+
+def Lorentz_next_randomized_rotation(q_1: Q, q_2: Q) -> Q:
+    """
+    Given 2 quaternions, creates a new quaternion to do a rotation
+    in the triple triple quaternion function by using a normalized cross product.
+
+    To assure that repeated calls cover the sphere, multiply by a random factor.
+
+    Args:
+        q_1: Q   any quaternion
+        q_2: Q   any quaternion whose first term equal the first term of q and
+                  for the first terms of each squared.
+
+    Returns: Q
+
+    """
+    q_1.check_representations(q_2)
+
+    if not math.isclose(q_1.t, q_2.t):
+        raise ValueError(
+            f"Oops, to be a rotation, the first values must be the same: {q_1.t} != {q_2.t}"
+        )
+
+    if not math.isclose(norm_squared(q_1).t, norm_squared(q_2).t):
+        raise ValueError(
+            f"Oops, the norm squared of these two are not equal: {norm_squared(q_1).t} != {norm_squared(q_2).t}"
+        )
+
+    next_rotation = product(product(q_1, q_2), qrandom())
+    v_abs_q_1 = abs_of_vector(q_1).t
+    next_vector_normalized = normalize(vector_q(next_rotation), v_abs_q_1)
+    next_vector_normalized.t = q_1.t
+
+    return next_vector_normalized
+
+
+def Lorentz_next_randomized_rotations(q_1: Qs, q_2: Qs) -> Qs:
+    f"""{Lorentz_next_randomized_rotation.__doc__}""".replace("Q", "Qs")
+    return qq_to_qs_function(Lorentz_next_randomized_rotation, q_1, q_2)
 
 
 def Lorentz_next_boost(q_1: Q, q_2: Q) -> Q:
@@ -3165,7 +3314,7 @@ def zero_out(
 
 def zero_outs(
     q_1: Qs, t: bool = False, x: bool = False, y: bool = False, z: bool = False
-):
+) -> Qs:
     f"""{zero_out.__doc__}""".replace("Q", "Qs")
 
     return Qs(
@@ -3178,8 +3327,11 @@ def zero_outs(
 
 # Generators of quaternion series.
 def generate_Qs(
-    func: FunctionType, q_1: Union[Q, FunctionType], dim: int = 10, qs_type: str = "ket"
-):
+    func: FunctionType,
+    q_1: Union[Q, Qs, FunctionType],
+    dim: int = 10,
+    qs_type: str = "ket",
+) -> Qs:
     """
     One quaternion cannot tell a story. generate_Qs provides a general way to create a
     quaternion series given a function and one quaternion/another function. The function
@@ -3188,7 +3340,7 @@ def generate_Qs(
 
     Args:
         func: FunctionType   a function that generates an instance of the class Q
-        q_1: Q, FunctionType  Either an instance of Q or a Q function
+        q_1: Q, FunctionType  Either an instance of Q, Qs, or a Q function
         dim: int    The dimensions of the quaternion series
         qs_type:    bra/ket/operator  Only works for a square operator at this time
 
@@ -3201,6 +3353,9 @@ def generate_Qs(
 
         for _ in range(dim - 1):
             new_qs.append(func(new_qs[-1]))
+
+    elif type(q_1) == Qs:
+        new_qs = q_1.qs
 
     elif type(q_1) == FunctionType:
         new_qs = [func(q_1())]
@@ -3216,8 +3371,8 @@ def generate_Qs(
 
 def generate_QQs(
     func,
-    q_1: Union[Q, FunctionType],
-    q_2: Union[Q, FunctionType],
+    q_1: Union[Q, Qs, FunctionType],
+    q_2: Union[Q, Qs, FunctionType],
     dim: int = 10,
     qs_type: str = "ket",
 ) -> Qs:
@@ -3232,8 +3387,8 @@ def generate_QQs(
 
     Args:
         func: FunctionType   a function that generates an instance of the class Q
-        q_1: Q, FunctionType  Either an instance of Q or a Q function
-        q_2: Q, FunctionType  Either an instance of Q or a Q function
+        q_1: Q, Qs, FunctionType  Either an instance of Q, Qs, or a Q function
+        q_2: Q, Qs, FunctionType  Either an instance of Q, Qs, or a Q function
         dim: int    The dimensions of the quaternion series
         qs_type:    bra/ket/operator  Only works for a square operator at this time
 
