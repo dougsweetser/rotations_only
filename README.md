@@ -27,3 +27,9 @@ the squared first term.
 This streamlit webapp was designed to show the rotations that are obviously possible with the Rodrigues rotation function can also be 
 done with the Rodrigues generalized rotation function. A function was written to call the latter in a way that only did
 rotations, no boosts.
+
+[Try the live webapp](https://share.streamlit.io/dougsweetser/rotations_only/webapp__rotations_only.py)
+
+It should look like this:
+
+![webapp for rotations only](webapp__rotations_only.png)
