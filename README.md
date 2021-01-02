@@ -32,4 +32,4 @@ rotations, no boosts.
 
 It should look like this:
 
-![webapp for rotations only](webapp__rotations_only.png)
+![webapp for rotations only](images/webapp__rotations_only.png)
